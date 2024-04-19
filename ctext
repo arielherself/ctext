@@ -1,0 +1,161 @@
+#!/bin/python3
+from sys import path, argv, stdin, stdout
+import os
+import tomllib
+import argparse
+
+CTEXT_MAX_RECURSION = int(os.environ.get('CTEXT_MAX_RECURSION', 256))
+
+arg_parser = argparse.ArgumentParser(prog=argv[0], description='Make you feel better when dealing with text.', epilog='What???')
+arg_parser.add_argument('-c', '--config', default='CTextLists.toml', type=str, help='path to CText configuration')
+arg_parser.add_argument('-s', '--strict', action='store_true', default=False, help='whether to use strict mode')
+arg_parser.add_argument('-r', '--recursive', default=0, type=int, help='how many times to repeat')
+arg_parser.add_argument('-i', '--include', default='', type=str, help='path to include when searching for files')
+args = arg_parser.parse_args()
+
+path.extend(args.include.split(','))
+
+file = ''.join(stdin)
+conf = tomllib.load(open(args.config, 'rb'))
+
+def abort(c, i):
+    raise ValueError(f'@char {i + 1}: unexpected token `{c}`')
+
+def abort_eof():
+    raise ValueError('@char EOF: Unexpected EOF')
+
+def process(func, arg: list[str], char_i: int):
+    result = ''
+    match func:
+        case '__replace_with':
+            pattern, new = arg
+            replace[pattern] = new
+        case '__replace_with_file':
+            file_name = ''.join(arg)
+            found = False
+            for p in path:
+                file_path = os.path.join(p, file_name)
+                if os.path.isfile(file_path):
+                    with open(file_path) as f:
+                        result += f.read()
+                        found = True
+                        break
+            if not found:
+                raise FileNotFoundError(f'File `{file_name}` not found')
+        case _:
+            pattern = conf[func]
+            arg_list = arg
+            if args.strict:
+                assert len(arg_list) == int(pattern['nargs']), f'@char {char_i + 1}: Function `{func}` requires {pattern["nargs"]} arguments, but {len(arg_list)} were provided'
+            argument_id = ''
+            pound = False
+            for i, c in enumerate(pattern['value']):
+                match c:
+                    case '#':
+                        if pound:
+                            if str.isnumeric(argument_id):
+                                if pattern['comma']:
+                                    result += arg_list[int(argument_id)].replace(',', '\\,')
+                                else:
+                                    if int(argument_id) < len(arg_list):
+                                        result += arg_list[int(argument_id)]
+                                    elif pattern['permissive']:
+                                        result = ''
+                                        break
+                            elif argument_id.endswith('...'):
+                                start = int(argument_id[:-3]) if len(argument_id) > 3 else 0
+                                result += ','.join(arg_list[start:])
+                            else:
+                                result += c
+                            argument_id = ''
+                        pound = not pound
+                    case _:
+                        if pound:
+                            argument_id += c
+                        else:
+                            result += c
+    return result
+
+times = CTEXT_MAX_RECURSION if args.recursive == 0 else args.recursive
+for t in range(times):
+    diff = False
+    replace = {}
+    brace_count = 0
+    is_open = False
+    is_open_brace = False
+    backslash = False
+    curr_result = ''
+    expression_func = ''
+    expression_arguments = []
+    curr_expression_argument = ''
+    for i, c in enumerate(file):
+        if backslash:
+            backslash = False
+            if is_open_brace:
+                curr_expression_argument += c
+            elif is_open:
+                abort(c, i)
+            else:
+                curr_result += c
+            continue
+        match c:
+            case ',':
+                if is_open_brace:
+                    expression_arguments.append(curr_expression_argument)
+                    curr_expression_argument = ''
+                elif is_open:
+                    abort(c, i)
+                else:
+                    curr_result += c
+            case '$':
+                if is_open_brace:
+                    curr_expression_argument += c
+                elif is_open:
+                    abort(c, i)
+                else:
+                    is_open = True
+            case '(':
+                if is_open_brace:
+                    curr_expression_argument += c
+                elif is_open:
+                    is_open_brace = True
+                    brace_count += 1
+                else:
+                    curr_result += c
+            case ')':
+                if is_open_brace:
+                    brace_count -= 1
+                    is_open_brace = False
+                    is_open = False
+                    if curr_expression_argument:
+                        expression_arguments.append(curr_expression_argument)
+                        curr_expression_argument = ''
+                    diff = True
+                    curr_result += process(expression_func, expression_arguments, i)
+                    expression_func = ''
+                    expression_arguments = []
+                elif is_open:
+                    abort(c, i)
+                else:
+                    curr_result += c
+            case '\\':
+                backslash = True
+            case _:
+                if is_open_brace:
+                    curr_expression_argument += c
+                elif is_open:
+                    expression_func += c
+                else:
+                    curr_result += c
+
+    if is_open_brace or is_open or backslash:
+        abort_eof()
+
+    for old, new in replace.items():
+        curr_result = curr_result.replace(old, new)
+
+    if not diff:
+        break
+    file = curr_result
+
+stdout.write(file)
