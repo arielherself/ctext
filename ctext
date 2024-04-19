@@ -19,8 +19,11 @@ file = ''.join(stdin)
 conf = tomllib.load(open(args.config, 'rb'))
 
 def abort(c, i):
-    raise ValueError(f'@char {i + 1}: unexpected token `{c}`')
+    raise ValueError(f'@char {i + 1} in stdin: unexpected token `{c}`')
 
+def abort_pattern(c, func, i):
+    raise ValueError(f'@char {i + 1} in {args.config}->{func}: unexpected token `{c}`')
+    
 def abort_eof():
     raise ValueError('@char EOF: Unexpected EOF')
 
@@ -44,7 +47,7 @@ def process(func, arg: list[str], char_i: int):
                 raise FileNotFoundError(f'File `{file_name}` not found')
         case _:
             pattern = conf[func]
-            arg_list = arg
+            arg_list = [x.replace(',', '\\,') for x in arg] if pattern['comma'] else arg
             if args.strict:
                 assert len(arg_list) == int(pattern['nargs']), f'@char {char_i + 1}: Function `{func}` requires {pattern["nargs"]} arguments, but {len(arg_list)} were provided'
             argument_id = ''
@@ -54,19 +57,18 @@ def process(func, arg: list[str], char_i: int):
                     case '#':
                         if pound:
                             if str.isnumeric(argument_id):
-                                if pattern['comma']:
-                                    result += arg_list[int(argument_id)].replace(',', '\\,')
-                                else:
-                                    if int(argument_id) < len(arg_list):
-                                        result += arg_list[int(argument_id)]
-                                    elif pattern['permissive']:
-                                        result = ''
-                                        break
+                                if int(argument_id) < len(arg_list):
+                                    result += arg_list[int(argument_id)]
+                                elif pattern['permissive']:
+                                    result = ''
+                                    break
                             elif argument_id.endswith('...'):
                                 start = int(argument_id[:-3]) if len(argument_id) > 3 else 0
                                 result += ','.join(arg_list[start:])
-                            else:
+                            elif not argument_id:
                                 result += c
+                            else:
+                                abort_pattern(c, func, i)
                             argument_id = ''
                         pound = not pound
                     case _:
