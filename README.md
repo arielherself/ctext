@@ -78,7 +78,7 @@ On the other hand, if we have `comma = true` set then `define` will expand to `$
 
 ### `permissive`
 
-A permissive function gracefully expands to nothing when there is an index overflow in the argument list, like when it tries to get the 3rd argument `#3#` although there are only no more than 2 arguments passed to it.
+A permissive function gracefully expands to nothing when there is an index overflow in the argument list, like when it tries to get the 3rd argument `#2#` although there are only no more than 2 arguments passed to it.
 This feature makes it easier to write recursive functions. Take the first configuration above as an example.
 In function `debug_expand` We use an argument range `#1...#` to call itself recursively, and when there is no `#0#` during a call, the function automatically finish the recursion.
 
