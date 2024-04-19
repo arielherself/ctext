@@ -52,7 +52,7 @@ Number of arguments that this function receives. It's only for verification in s
 
 ### `comma`
 
-The **comma-bypass** feature allows you to pass the argument including a comma (`,`) received from caller to another function. For example:
+The **comma-bypass** feature allows you to forward the argument including a comma (`,`) received from caller to another function. For example:
 
 ```toml
 [define]
@@ -62,7 +62,7 @@ permissive = false
 value = '$__replace_with(#0#,#1#)'
 ```
 
-If we define this function called `define`, then we must ensure that the comma in the argument won't be interpreted as a separator in the argument list during the function expansion.
+If we define this function called `define` like this, then we must ensure that the comma in the argument won't be interpreted as a separator in the argument list during the function expansion.
 Suppose we have `comma = false` and this function call:
 
 ```cpp
@@ -74,12 +74,12 @@ std::pair<int, int> my_pair = {pair_gen};
 
 We expect `pair_gen` to expand to `x,y`. But instead it's `x` because the `define` function expands to `$__replace_with(pair_gen,x,y)` and the built-in function `__replace_with` replaces all occurrences of the first argument with the second argument.
 
-On the other hand, if we have `comma = true` then `define` will expand to `$__replace_with(pair_gen,x\,y)` as the comma-bypass feature treats the comma in an argument as a escape character and keeps the backslash all the time.
+On the other hand, if we have `comma = true` set then `define` will expand to `$__replace_with(pair_gen,x\,y)` as the comma-bypass feature treats the comma in an argument as an escape character and keeps the backslash all the time.
 
 ### `permissive`
 
 A permissive function gracefully expands to nothing when there is an index overflow in the argument list, like when it tries to get the 3rd argument `#3#` although there are only no more than 2 arguments passed to it.
 This feature makes it easier to write recursive functions. Take the first configuration above as an example.
-In function `debug_expand` We use a argument range `#1...#` to call itself recursively, and when there is no `#0#` during a call, the function automatically finish the recursion.
+In function `debug_expand` We use an argument range `#1...#` to call itself recursively, and when there is no `#0#` during a call, the function automatically finish the recursion.
 
 If a function is **not** permissive, it will ignore any occurrence of overflowed parameters, placing nothing on its position in the expanded expression.
