@@ -141,7 +141,10 @@ for t in range(times):
             elif is_open:
                 abort(c, i)
             else:
-                curr_result += c
+                if c == '\\':
+                    curr_result += '\\\\'
+                else:
+                    curr_result += c
             continue
         match c:
             case ',':
@@ -203,4 +206,5 @@ for t in range(times):
         break
     file = curr_result
 
+file = file.replace('\\\\', '\\')
 stdout.write(file)
