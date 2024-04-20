@@ -1,6 +1,7 @@
 #!/bin/python3
 from sys import path, argv, stdin, stdout
 import os
+import re
 import time
 import tomllib
 import argparse
@@ -34,6 +35,12 @@ def abort_pattern_eof(func):
 def process(func, arg: list[str], char_i: int):
     result = ''
     match func:
+        case '__eval':
+            expr = ''.join(arg)
+            if re.match(r'[\w\s()+\-*/%><=!&|]+', expr) is not None:
+                result = str(eval(expr))
+            else:
+                result = expr
         case '__time':
             result = str(int(time.time()))
         case '__repeat':
