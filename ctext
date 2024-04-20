@@ -13,6 +13,7 @@ arg_parser.add_argument('-c', '--config', default='CTextLists.toml', type=str, h
 arg_parser.add_argument('-s', '--strict', action='store_true', default=False, help='whether to use strict mode')
 arg_parser.add_argument('-r', '--recursive', default=0, type=int, help='how many times to repeat')
 arg_parser.add_argument('-i', '--include', default='', type=str, help='path to include when searching for files')
+arg_parser.add_argument('--unsafe', action='store_true', default=False, help='whether to use unsafe mode')
 args = arg_parser.parse_args()
 
 path.extend(args.include.split(','))
@@ -37,7 +38,7 @@ def process(func, arg: list[str], char_i: int):
     match func:
         case '__eval':
             expr = ''.join(arg)
-            if re.match(r'[\w\s()+\-*/%><=!&|]+', expr) is not None:
+            if args.unsafe or re.match(r'[\w\s()+\-*/%><=!&|]+', expr) is not None:
                 result = str(eval(expr))
             else:
                 result = expr
