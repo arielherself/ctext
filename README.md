@@ -4,7 +4,7 @@
 
 ## Installation
 
-Use the following command to install CText. It requires Python >3.11 to work.
+Use the following command to install CText. It requires Python >=3.11 to work.
 
 ```bash
 curl -fsSLO "https://raw.githubusercontent.com/arielherself/ctext/main/ctext" && chmod +x ctext && sudo mv ctext /usr/local/bin
